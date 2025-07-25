@@ -1,5 +1,14 @@
 Updates Found in releases
 
+![Triplestackui](Example.png)
+
+Picture:
+   1. Default not edits
+   2. Triplestack with skins original files only
+   3. Triplestack with rafis only
+   4. Triple stack with original skins hitoverlay and rafis
+   
+
 If you find bugs please let me know.
 If your skin's hitcircle is a faint background (not a circle) common in no mod skins, I'd reccomend using the option that includes both rafis and the provided one.
 If you're skin is saying it is missing the default-#, they may be found in the skins folder called "assests" or simliar, please drag and drop it into the skins  folder for now
