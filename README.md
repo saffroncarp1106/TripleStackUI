@@ -7,6 +7,9 @@ Picture:
    2. Triplestack with skins original files only
    3. Triplestack with rafis only
    4. Triple stack with original skins hitoverlay and rafis
+         -Note, this looks awful in game, really for fl skins.
+NO MOD SKINS, (with background to avoid picture 4)
+JUST USE RAFIS ADDON
    
 
 If you find bugs please let me know.
