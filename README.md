@@ -34,7 +34,7 @@ How to use
 
 3. Export
    - Click "Confirm" to process and export the new skin.
-   - The app will create a new skin folder (if "Copy & Process" is enabled) and update the images.
+   - The app will create a new skin folder (if "Copy & Process" is enabled) and update the images [actually i have not tested this yet]x
 
 Notes
 - Your original skin folder is never modified. (at least it should not be)
