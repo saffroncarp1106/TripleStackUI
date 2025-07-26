@@ -14,7 +14,7 @@ JUST USE RAFIS ADDON
    
 
 If you find bugs please let me know.
-If your skin's hitcircle is a faint background (not a circle) common in no mod skins, I'd reccomend using the option that includes both rafis and the provided one.
+If your skin's hitcircle is a faint background (not a circle) common in no mod skins, ONLY USE RAFIS, NOT THE ORIGNAL, it causes overbrightness.
 If you're skin is saying it is missing the default-#, they may be found in the skins folder called "assests" or simliar, please drag and drop it into the skins  folder for now
    - (Need to update another statement for that but I'm lazy)
 
