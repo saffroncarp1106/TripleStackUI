@@ -2,19 +2,19 @@ Updates Found in releases
 
 ![Triplestackui](Example.png)
 
-Picture:
-   1. Default not edits
-   2. Triplestack with skins original files only
-   3. Triplestack with rafis only
-   4. Triple stack with original skins hitoverlay and rafis
-         -Note, this looks awful in game, really for fl skins.
-      
-NO MOD SKINS, (with background to avoid picture 4)
-JUST USE RAFIS ADDON
-   
+Example Picture:
+Example with Hibiki Skin
+   1. Default skin not edits
+
+      -The Hitcircle has no outer border for context, only the hitcircloverlay has the ring.
+   3. Triplestack with skins original files only
+   4. Triplestack with rafis only
+   5. Triple stack with original skins hitoverlay and rafis
+
+        -Note, this looks awful in game, really for fl skins.
 
 If you find bugs please let me know.
-If your skin's hitcircle is a faint background (not a circle) common in no mod skins, ONLY USE RAFIS, NOT THE ORIGNAL, it causes overbrightness.
+If your skin's hitcircle is a faint background (not a circle) common in no mod skins, ONLY USE RAFIS, NOT THE ORIGNAL, it causes overbrightness as seen in pictu
 If you're skin is saying it is missing the default-#, they may be found in the skins folder called "assests" or simliar, please drag and drop it into the skins  folder for now
    - (Need to update another statement for that but I'm lazy)
 
