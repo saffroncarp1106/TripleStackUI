@@ -1,46 +1,20 @@
-Updates Found in releases
+# Triple Stack Skin Maker V0.3.0
 
-![Triplestackui](Example.png)
+This is the Windows x64 Rust edition of Triple Stack Skin Maker. This release is rewritten in Rust and requires no Python installation or Python dependencies. The main window uses OpenGL, including its controls, animation and image previews. Windows supplies the title bar and file dialogs.
 
-Example Picture:
-Example with Hibiki Skin
-   1. Default skin not edits
+## Run
 
-      -The Hitcircle has no outer border for context, only the hitcircloverlay has the ring.
-   3. Triplestack with skins original files only
-   4. Triplestack with rafis only
-   5. Triple stack with original skins hitoverlay and rafis
+Extract the Windows ZIP and open TripleStack.exe. The app uses the OpenGL driver installed on Windows.
 
-        -Note, this looks awful in game, really for fl skins.
+Select an osu! skin folder, adjust Options if needed, and click Confirm. Copy & Process is on by default and creates a sibling folder ending in @3xStack. The save dialog exports the result as an .osk file.
 
-If you find bugs please let me know.
-If your skin's hitcircle is a faint background (not a circle) common in no mod skins, ONLY USE RAFIS, NOT THE ORIGNAL, it causes overbrightness as seen in pictu
-If you're skin is saying it is missing the default-#, they may be found in the skins folder called "assests" or simliar, please drag and drop it into the skins  folder for now
-   - (Need to update another statement for that but I'm lazy)
+## Build from source
 
-How to use
+Keep hitcircle.png, followpoint.png, and icon.ico in the parent directory of this Cargo project. Use the Windows x64 MSVC Rust toolchain with Visual Studio C++ Build Tools and a Windows SDK.
 
-1. Options
-   - Click "Options" to expand settings.
-   - **Copy & Process**: Creates a new skin folder for output (recommended).
-   - **Force Overlay Res**: Set the output image size (default 160).
-   - **Offset Factor**: Adjusts the stacking offset.
-   - **Use Only Rafis hitcircle**: Uses only the provided hitcircle.png (ignores your skin's hitcircle).
-   - **Use existing hitcircle + Rafis circle**: Combines your skin's hitcircle with the provided one (Rafis).
+Double-click build.bat or run it from a terminal. It places the release executable in target\windows-x64-opengl. Open TripleStack.exe in that folder to run the build.
 
-2. **Preview**
-   - The canvas shows a live preview of the stacking result.
-   - The Numbered should be larger than the others!
 
-3. Export
-   - Click "Confirm" to process and export the new skin.
-   - The app will create a new skin folder (if "Copy & Process" is enabled) and update the images [actually i have not tested this yet]x
 
-Notes
-- Your original skin folder is never modified. (at least it should not be)
-- Back up your skins before use!
+Build commands are run from the TripleStack directory.
 
-Troubleshooting
-- If you see errors about missing files, check that your skin folder and `hitcircle.png` are present.
-
-Enjoy playing you disguisting farmer.
