@@ -1,4 +1,8 @@
+pub mod beatmap_audio;
 mod images;
+pub mod number_fonts;
+mod numbers;
+pub mod skin_ini;
 
 use anyhow::{Context, Result, anyhow, ensure};
 use image::{ExtendedColorType, ImageEncoder, ImageReader, RgbaImage, codecs::png::PngEncoder};
@@ -13,7 +17,6 @@ use walkdir::WalkDir;
 use zip::{CompressionMethod, ZipWriter, write::SimpleFileOptions};
 
 const RAFIS_CIRCLE: &[u8] = include_bytes!("../../hitcircle.png");
-const FOLLOWPOINT: &[u8] = include_bytes!("../../followpoint.png");
 
 #[derive(Clone, Copy)]
 pub struct Options {
@@ -21,7 +24,6 @@ pub struct Options {
     pub force_resolution: Option<u32>,
     pub use_rafis: bool,
     pub overlay_on_top: bool,
-    pub brighter_followpoint: bool,
 }
 
 impl Default for Options {
@@ -31,7 +33,6 @@ impl Default for Options {
             force_resolution: Some(160),
             use_rafis: true,
             overlay_on_top: false,
-            brighter_followpoint: false,
         }
     }
 }
@@ -57,24 +58,96 @@ impl std::fmt::Debug for MissingCircle {
 impl std::error::Error for MissingCircle {}
 
 pub struct Preview {
+    pub original_circle: RgbaImage,
     pub circle: RgbaImage,
     pub numbered: Option<RgbaImage>,
+    pub followpoints: Vec<(usize, RgbaImage)>,
+    pub assets: Vec<(&'static str, RgbaImage)>,
 }
 
 pub fn preview(skin: &Path, options: Options) -> Result<Preview> {
-    let circle = select_circle(skin, options)?;
-    let numbered = match number_paths(skin)?.into_iter().next() {
-        Some(path) => {
-            let size = canvas_size(&circle, options);
-            let resized = images::resize_circle(&circle, size);
-            Some(images::stack_number(&read_image(&path)?, &resized))
-        }
-        None => None,
+    preview_with_ini(skin, options, None)
+}
+
+pub fn preview_with_ini(skin: &Path, options: Options, draft: Option<&str>) -> Result<Preview> {
+    let numbers = numbers::load(skin, draft)?;
+    let original_circle = if skin.join("hitcircle.png").is_file() {
+        read_image(&skin.join("hitcircle.png"))?
+    } else {
+        rafis_circle()?
     };
-    Ok(Preview { circle, numbered })
+    let circle = select_circle(skin, options)?;
+    let resized = images::resize_circle(&circle, canvas_size(&circle, options));
+    let numbered = Some(images::stack_number(&numbers.digits[1], &resized));
+    let mut followpoint_paths = Vec::new();
+    for entry in fs::read_dir(skin)? {
+        let path = entry?.path();
+        let Some(name) = path.file_name().and_then(|name| name.to_str()) else {
+            continue;
+        };
+        let name = name.to_ascii_lowercase();
+        if let Some(index) = name
+            .strip_prefix("followpoint-")
+            .and_then(|name| name.strip_suffix(".png"))
+            .and_then(|index| index.parse::<usize>().ok())
+        {
+            followpoint_paths.push((index, path));
+        }
+    }
+    followpoint_paths.sort_by_key(|(index, _)| *index);
+    let followpoints = if followpoint_paths.is_empty() {
+        let base = skin.join("followpoint.png");
+        if base.is_file() {
+            vec![(0, read_image(&base)?)]
+        } else {
+            Vec::new()
+        }
+    } else {
+        followpoint_paths
+            .into_iter()
+            .map(|(index, path)| Ok((index, read_image(&path)?)))
+            .collect::<Result<Vec<_>>>()?
+    };
+    let mut assets = Vec::new();
+    for (label, file) in [
+        ("Approach circle", "approachcircle.png"),
+        ("Hitcircle overlay", "hitcircleoverlay.png"),
+        ("Hitcircle", "hitcircle.png"),
+        ("300", "hit300.png"),
+        ("100", "hit100.png"),
+        ("50", "hit50.png"),
+        ("Cursor", "cursor.png"),
+        ("Trail", "cursortrail.png"),
+    ] {
+        let mut path = skin.join(file);
+        if label == "Cursor" && !path.is_file() {
+            path = skin.join("cursor@2x.png");
+        }
+        if path.is_file() {
+            assets.push((label, read_image(&path)?));
+        }
+    }
+    assets.push(("Combo number", numbers.digits[1].clone()));
+    // Use the same processing path as export, specifically for combo number 1.
+    if let Some((_, number)) = assets.iter().find(|(label, _)| *label == "Combo number") {
+        let resized = images::resize_circle(&circle, canvas_size(&circle, options));
+        let stacked_one = images::stack_number(number, &resized);
+        assets.push(("After combo number", stacked_one));
+    }
+    Ok(Preview {
+        original_circle,
+        circle,
+        numbered,
+        followpoints,
+        assets,
+    })
 }
 
 pub fn process(skin: &Path, options: Options) -> Result<PathBuf> {
+    ensure!(
+        !skin.join("client.realm").is_file(),
+        "Choose a skin working copy with the osu!lazer skin browser, rather than processing the lazer data directory"
+    );
     ensure!(
         skin.is_dir(),
         "Skin folder does not exist: {}",
@@ -91,25 +164,46 @@ pub fn process(skin: &Path, options: Options) -> Result<PathBuf> {
     } else {
         skin.to_owned()
     };
-    delete_2x_assets(&destination)?;
-    if options.brighter_followpoint {
-        replace_followpoints(&destination)?;
-    }
+    let numbers = numbers::load(&destination, None)?;
+    // Only remove HD counterparts of assets that are actually being replaced.
+    remove_if_present(&destination.join("hitcircleoverlay@2x.png"))?;
     let overlay_path = destination.join("hitcircleoverlay.png");
     remove_if_present(&overlay_path)?;
     let circle = select_circle(&destination, options)?;
     save_image(&circle, &overlay_path)?;
 
     let resized = images::resize_circle(&circle, canvas_size(&circle, options));
-    for path in number_paths(&destination)? {
-        let number = read_image(&path)?;
-        save_image(&images::stack_number(&number, &resized), &path)?;
+    for (digit, number) in numbers.digits.iter().enumerate() {
+        let path = numbers.path(&destination, digit, false);
+        fs::create_dir_all(path.parent().unwrap())?;
+        ensure!(
+            path.parent()
+                .unwrap()
+                .canonicalize()?
+                .starts_with(destination.canonicalize()?),
+            "Number output leaves the skin folder"
+        );
+        save_image(&images::stack_number(number, &resized), &path)?;
+        remove_if_present(&numbers.path(&destination, digit, true))?;
     }
     update_skin_ini(
         &destination.join("skin.ini"),
         options.force_resolution.unwrap_or(160),
     )?;
     Ok(destination)
+}
+
+pub fn save_skin_ini_with_numbers(skin: &Path, ini: &mut skin_ini::SkinIni) -> Result<()> {
+    number_fonts::ensure_complete(skin, Some(ini.source()))?;
+    ini.save(&skin.join("skin.ini"))
+}
+
+pub fn apply_skin_ini_draft(skin: &Path, source: &str, overlap: u32) -> Result<()> {
+    let path = skin.join("skin.ini");
+    let mut ini = skin_ini::SkinIni::load(&path)?;
+    ini.set_source(source.to_owned());
+    save_skin_ini_with_numbers(skin, &mut ini)?;
+    update_skin_ini(&path, overlap)
 }
 
 fn select_circle(skin: &Path, options: Options) -> Result<RgbaImage> {
@@ -177,68 +271,12 @@ fn canvas_size(circle: &RgbaImage, options: Options) -> (u32, u32) {
         .map_or_else(|| circle.dimensions(), |size| (size, size))
 }
 
-fn number_paths(skin: &Path) -> Result<Vec<PathBuf>> {
-    let mut paths = Vec::new();
-    for entry in fs::read_dir(skin)? {
-        let entry = entry?;
-        let name = entry.file_name().to_string_lossy().to_ascii_lowercase();
-        if name.ends_with(".png")
-            && name
-                .strip_prefix("default-")
-                .is_some_and(|rest| rest.as_bytes().first().is_some_and(u8::is_ascii_digit))
-        {
-            paths.push(entry.path());
-        }
-    }
-    Ok(paths)
-}
-
-fn delete_2x_assets(skin: &Path) -> Result<()> {
-    for entry in fs::read_dir(skin)? {
-        let entry = entry?;
-        if entry
-            .file_name()
-            .to_string_lossy()
-            .to_ascii_lowercase()
-            .contains("@2x")
-        {
-            remove_if_present(&entry.path())?;
-        }
-    }
-    Ok(())
-}
-
 fn remove_if_present(path: &Path) -> Result<()> {
     match fs::remove_file(path) {
         Ok(()) => Ok(()),
         Err(error) if error.kind() == ErrorKind::NotFound => Ok(()),
         Err(error) => Err(error).with_context(|| format!("Removing {}", path.display())),
     }
-}
-
-fn replace_followpoints(skin: &Path) -> Result<()> {
-    for entry in fs::read_dir(skin)? {
-        let path = entry?.path();
-        let stem = path
-            .file_stem()
-            .unwrap_or_default()
-            .to_string_lossy()
-            .to_ascii_lowercase();
-        if stem
-            .strip_prefix("followpoint-")
-            .is_some_and(|index| index.len() == 1 && index.as_bytes()[0].is_ascii_digit())
-        {
-            remove_if_present(&path)?;
-        }
-    }
-    let base = skin.join("followpoint.png");
-    // The original treats replacement as best-effort and falls back to the skin's image.
-    if fs::write(&base, FOLLOWPOINT).is_ok() || base.exists() {
-        for frame in 0..10 {
-            let _ = fs::copy(&base, skin.join(format!("followpoint-{frame}.png")));
-        }
-    }
-    Ok(())
 }
 
 fn copy_skin(skin: &Path) -> Result<PathBuf> {
@@ -287,7 +325,7 @@ fn update_skin_ini(path: &Path, overlap: u32) -> Result<()> {
 
     let bytes = match fs::read(path) {
         Ok(bytes) => bytes,
-        Err(error) if error.kind() == ErrorKind::NotFound => return Ok(()),
+        Err(error) if error.kind() == ErrorKind::NotFound => Vec::new(),
         Err(error) => return Err(error).with_context(|| format!("Reading {}", path.display())),
     };
     let utf16 = match bytes.as_slice() {
@@ -363,4 +401,48 @@ pub fn export_osk(skin: &Path, output: &Path) -> Result<()> {
     }
     temporary.persist(output)?;
     Ok(())
+}
+
+#[cfg(test)]
+mod preview_tests {
+    use super::*;
+
+    #[test]
+    fn lazer_data_directories_cannot_be_processed_as_skin_folders() {
+        let directory = tempfile::tempdir().unwrap();
+        fs::write(directory.path().join("client.realm"), b"database").unwrap();
+        assert!(process(directory.path(), Options::default()).is_err());
+        assert_eq!(
+            fs::read(directory.path().join("client.realm")).unwrap(),
+            b"database"
+        );
+        assert_eq!(fs::read_dir(directory.path()).unwrap().count(), 1);
+    }
+    #[test]
+    fn animated_after_assets_match_exported_overlay_and_number_one() {
+        let directory = tempfile::tempdir().unwrap();
+        let skin = directory.path();
+        let original = RgbaImage::from_pixel(128, 128, image::Rgba([100, 100, 100, 200]));
+        let number = RgbaImage::from_pixel(30, 50, image::Rgba([255, 255, 255, 180]));
+        original.save(skin.join("hitcircle.png")).unwrap();
+        number.save(skin.join("default-1.png")).unwrap();
+        let options = Options {
+            copy: false,
+            ..Options::default()
+        };
+        let draft = preview(skin, options).unwrap();
+        let generated = &draft
+            .assets
+            .iter()
+            .find(|(label, _)| *label == "After combo number")
+            .unwrap()
+            .1;
+        assert_eq!(read_image(&skin.join("default-1.png")).unwrap(), number);
+        process(skin, options).unwrap();
+        assert_eq!(&read_image(&skin.join("default-1.png")).unwrap(), generated);
+        assert_eq!(
+            read_image(&skin.join("hitcircleoverlay.png")).unwrap(),
+            draft.circle
+        );
+    }
 }
