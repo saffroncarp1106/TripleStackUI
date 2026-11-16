@@ -1,7 +1,10 @@
-# Triple Stack Skin Maker V0.3.0
+# Triple Stack Skin Maker V0.4.3
 
 This is the Windows x64 Rust edition of Triple Stack Skin Maker. 
 This release is Rust rewriteand requires, branching away from Python for speed. The main window uses OpenGL, making it render faster and allowing for window resizing to not be a buggy tkinter release.
+
+Much of the bulk of the latest v0.4.3 is almost entirely from the provided audio .zip bomb, the program should run without it, if you are trying to save space.
+
 ## Run
 
 Extract the Windows ZIP and open TripleStack.exe. The app assumes a OpenGL driver is installed on Windows.
