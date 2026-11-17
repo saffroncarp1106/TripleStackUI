@@ -1,6 +1,6 @@
 # Triple Stack Skin Maker V0.3.0
 
-This is the Windows x64 Rust edition of Triple Stack Skin Maker. This release is rewritten in Rust and requires no Python installation or Python dependencies. The main window uses OpenGL, including its controls, animation and image previews. Windows supplies the title bar and file dialogs.
+This is the Windows x64 Rust edition of Triple Stack Skin Maker. This release is rewritten in Rust and requires no Python installation or Python dependencies. The main window uses OpenGL, including its controls, animation and image previews.
 
 ## Run
 
@@ -14,4 +14,6 @@ Keep hitcircle.png, followpoint.png, and icon.ico in the parent directory of thi
 
 Double-click build.bat or run it from a terminal. It places the release executable in target\windows-x64-opengl. Open TripleStack.exe in that folder to run the build.
 
+## To Do
 
+Better first time user experience.
